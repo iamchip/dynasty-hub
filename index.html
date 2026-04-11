@@ -972,7 +972,7 @@ async function renderLeagueDocs(el, leagueId) {
     return;
   }
 
-  const DOC_TYPE_COLORS = { Bylaws: '#2b6cb0', Rules: '#1a7a32', 'Draft Rules': '#c0155e', Other: '#8a8a8a' };
+  const DOC_TYPE_COLORS = { Bylaws: '#2b6cb0', Tags: '#1a7a32', 'Draft Docs': '#c0155e', Other: '#8a8a8a' };
 
   list.innerHTML = docs.map(doc => {
     const url = sb.storage.from('league-docs').getPublicUrl(doc.storage_path).data.publicUrl;
@@ -1030,8 +1030,8 @@ function openDocUpload(leagueId) {
         <label>Document Type</label>
         <select id="doc-type">
           <option>Bylaws</option>
-          <option>Rules</option>
-          <option>Draft Rules</option>
+          <option>Tags</option>
+          <option>Draft Docs</option>
           <option>Other</option>
         </select>
       </div>
