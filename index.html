@@ -294,11 +294,22 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 const LEAGUES = [
-  { id: 'tdl', name: 'The Dynasty League', short: 'TDL', color: '#2b6cb0', logo: 'TDL_Icon.png' },
-  { id: 'tsl', name: 'The Superflex League', short: 'TSL', color: '#c0155e', logo: 'TSL_Icon.png' },
-  { id: 'tcl', name: 'The Contract League', short: 'TCL', color: '#1a7a32', logo: 'TCL_Icon.png' },
-  { id: 'txl', name: 'COMMING SOON', short: 'TXL', color: '#8a8a8a', logo: null },
+  { id: 'tdl', name: 'The Dynasty League', short: 'TDL', color: '#2b6cb0', logo: 'TDL_Icon.png', mfl: '39125' },
+  { id: 'tsl', name: 'The Superflex League', short: 'TSL', color: '#c0155e', logo: 'TSL_Icon.png', mfl: '65694' },
+  { id: 'tcl', name: 'The Contract League', short: 'TCL', color: '#1a7a32', logo: 'TCL_Icon.png', mfl: '54478' },
+  { id: 'txl', name: 'COMMING SOON', short: 'TXL', color: '#8a8a8a', logo: null, mfl: null },
 ];
+
+// MFL year is current year Jan-Feb, next year Mar-Dec
+function getMFLYear() {
+  const now = new Date();
+  return now.getMonth() < 2 ? now.getFullYear() : now.getFullYear();
+}
+function getMFLUrl(leagueId) {
+  const now = new Date();
+  const year = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1;
+  return `https://www42.myfantasyleague.com/${year}/home/${leagueId}#0`;
+}
 
 let currentPage = 'home';
 let user = null;
@@ -930,12 +941,19 @@ async function renderLeagueDocs(el, leagueId) {
       <button onclick="navigateTo('home')" style="background:none;border:none;color:var(--muted);font-family:var(--font-cond);letter-spacing:1px;text-transform:uppercase;font-size:0.8rem;cursor:pointer;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.4rem;">
         ← Back to Home
       </button>
-      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.25rem;">
-        ${league.logo ? `<img src="${league.logo}" style="width:48px;height:48px;object-fit:contain;"/>` : `<div style="width:48px;height:48px;border-radius:50%;border:2px solid ${league.color};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;color:${league.color};">${league.short}</div>`}
-        <div>
-          <div class="section-title" style="color:${league.color};">${league.short}</div>
-          <div class="section-sub">${league.name} — League Documents</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:0.25rem;">
+        <div style="display:flex;align-items:center;gap:1rem;">
+          ${league.logo ? `<img src="${league.logo}" style="width:48px;height:48px;object-fit:contain;"/>` : `<div style="width:48px;height:48px;border-radius:50%;border:2px solid ${league.color};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;color:${league.color};">${league.short}</div>`}
+          <div>
+            <div class="section-title" style="color:${league.color};">${league.short}</div>
+            <div class="section-sub">${league.name} — League Resources</div>
+          </div>
         </div>
+        ${league.mfl ? `
+          <a href="${getMFLUrl(league.mfl)}" target="_blank" style="display:flex;align-items:center;gap:0.5rem;background:var(--surface);border:1px solid ${league.color};color:${league.color};font-family:var(--font-cond);font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;padding:0.6rem 1.2rem;border-radius:6px;text-decoration:none;transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.background='${league.color}22'" onmouseout="this.style.background='var(--surface)'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Visit MFL Page
+          </a>` : ''}
       </div>
       ${isChampionAdmin() ? `
         <div style="margin:1.5rem 0 0.5rem;display:flex;justify-content:flex-end;">
