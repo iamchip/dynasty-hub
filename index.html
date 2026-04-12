@@ -330,6 +330,20 @@ window._debug = () => {
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 // Discord user IDs allowed to edit champions (add/remove from this list)
 const CHAMPION_ADMINS = ['227860796003057677'];
+const APPLICATION_ADMINS = ['227860796003057677', '260855372183502848', '501532602948255745'];
+
+function isApplicationAdmin() {
+  if (!user) return false;
+  const possible = [
+    user.user_metadata?.provider_id,
+    user.user_metadata?.sub,
+    user.identities?.[0]?.id,
+    user.identities?.[0]?.identity_data?.provider_id,
+    user.identities?.[0]?.identity_data?.sub,
+    user.id
+  ].filter(Boolean);
+  return possible.some(id => APPLICATION_ADMINS.includes(String(id)));
+}
 
 // Cache provider_token from OAuth redirect — it's only present on the first callback
 let cachedProviderToken = null;
@@ -463,8 +477,8 @@ async function signOut() {
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 function renderNav() {
-  const pages = ['home','champions','gallery','join'];
-  const labels = { home: 'Home', champions: 'Champions', gallery: 'Draft Gallery', join: 'Apply to Join ' };
+  const pages = ['home','champions','gallery','join', ...(isApplicationAdmin() ? ['applications'] : [])];
+  const labels = { home: 'Home', champions: 'Champions', gallery: 'Draft Gallery', join: 'Apply to Join ', applications: 'Applications' };
   const nl = document.getElementById('nav-links');
   nl.innerHTML = pages.map(p => `
     <button class="${currentPage===p?'active':''}" onclick="navigateTo('${p}')">${labels[p]}</button>
@@ -504,6 +518,7 @@ function renderPage(page) {
   else if (page === 'gallery') renderGallery(mc);
   else if (page === 'join') renderJoin(mc);
   else if (page.startsWith('docs-')) renderLeagueDocs(mc, page.replace('docs-', ''));
+  else if (page === 'applications') renderApplications(mc);
 }
 
 // ── HOME ──────────────────────────────────────────────────────────────────────
@@ -950,9 +965,9 @@ async function renderLeagueDocs(el, leagueId) {
           </div>
         </div>
         ${league.mfl ? `
-          <a href="${getMFLUrl(league.mfl)}" target="_blank" style="display:flex;align-items:center;gap:0.5rem;background:var(--surface);border:1px solid ${league.color};color:${league.color};font-family:var(--font-cond);font-size:0.85rem;letter-spacing:1px;text-transform:uppercase;padding:0.6rem 1.2rem;border-radius:6px;text-decoration:none;transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.background='${league.color}22'" onmouseout="this.style.background='var(--surface)'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            Visit MFL Page
+          <a href="${getMFLUrl(league.mfl)}" target="_blank" style="display:flex;align-items:center;gap:0.75rem;background:${league.color};border:2px solid ${league.color};color:white;font-family:var(--font-display);font-size:1.1rem;letter-spacing:2px;text-transform:uppercase;padding:0.85rem 2rem;border-radius:8px;text-decoration:none;transition:all 0.2s;white-space:nowrap;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Visit ${league.short} on MFL
           </a>` : ''}
       </div>
       ${isChampionAdmin() ? `
@@ -1220,6 +1235,107 @@ async function submitApplication(e) {
       <p>Thanks ${payload.first_name}, we'll review your application and reach out via email or Discord.</p>
     </div>
   `;
+}
+
+// ── APPLICATIONS ─────────────────────────────────────────────────────────────
+const STATUS_CONFIG = {
+  pending:    { label: 'Pending',    color: '#888' },
+  reviewed:   { label: 'Reviewed',  color: '#2b6cb0' },
+  waitlisted: { label: 'Waitlisted',color: '#d97706' },
+  accepted:   { label: 'Accepted',  color: '#1a7a32' },
+  rejected:   { label: 'Rejected',  color: '#e53e3e' },
+};
+
+async function renderApplications(el) {
+  if (!isApplicationAdmin()) {
+    el.innerHTML = `<div class="auth-gate"><h2>Access Denied</h2><p>You do not have permission to view this page.</p></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <section>
+      <div class="section-title">📋 Prospect Applications</div>
+      <div class="section-sub">Manage incoming applications to join the hub</div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:1.5rem 0;" id="app-filters">
+        ${['all','pending','reviewed','waitlisted','accepted','rejected'].map(s => `
+          <button onclick="filterApps('${s}')" id="appf-${s}" style="background:${s==='all'?'#333':'var(--surface)'};color:${s==='all'?'white':'var(--muted)'};border:1px solid var(--border);font-family:var(--font-cond);font-size:0.8rem;letter-spacing:1px;text-transform:uppercase;padding:0.4rem 0.9rem;border-radius:20px;cursor:pointer;">
+            ${s === 'all' ? 'All' : STATUS_CONFIG[s].label}
+          </button>`).join('')}
+      </div>
+      <div id="apps-list"><div style="color:var(--muted);font-family:var(--font-cond);padding:3rem 0;text-align:center;">Loading...</div></div>
+    </section>
+  `;
+  await loadApplications();
+}
+
+let allApplications = [];
+let appFilter = 'all';
+
+async function loadApplications() {
+  const { data } = await sb.from('prospect_applications').select('*').order('created_at', { ascending: false });
+  allApplications = data || [];
+  renderAppList();
+}
+
+function filterApps(status) {
+  appFilter = status;
+  document.querySelectorAll('#app-filters button').forEach(btn => {
+    const s = btn.id.replace('appf-','');
+    btn.style.background = s === status ? '#333' : 'var(--surface)';
+    btn.style.color = s === status ? 'white' : 'var(--muted)';
+  });
+  renderAppList();
+}
+
+function renderAppList() {
+  const list = document.getElementById('apps-list');
+  if (!list) return;
+  const filtered = appFilter === 'all' ? allApplications : allApplications.filter(a => (a.status||'pending') === appFilter);
+  if (!filtered.length) {
+    list.innerHTML = `<div style="color:var(--muted);font-family:var(--font-cond);padding:3rem 0;text-align:center;text-transform:uppercase;">No applications${appFilter !== 'all' ? ' with this status' : ''} yet.</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(app => {
+    const status = app.status || 'pending';
+    const cfg = STATUS_CONFIG[status];
+    const date = new Date(app.created_at).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+    const leagues = (app.leagues_interested || []).map(id => {
+      const l = LEAGUES.find(x => x.id === id);
+      return l ? `<span style="color:${l.color};font-weight:600;">${l.short}</span>` : id;
+    }).join(', ');
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid ${cfg.color};border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+          <div>
+            <div style="font-family:var(--font-display);font-size:1.3rem;letter-spacing:1px;">${app.first_name} ${app.last_name}</div>
+            <div style="color:var(--muted);font-size:0.85rem;font-family:var(--font-cond);margin-top:2px;">${app.email}${app.discord ? ' · ' + app.discord : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span style="font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;background:${cfg.color}22;color:${cfg.color};padding:0.25rem 0.7rem;border-radius:4px;border:1px solid ${cfg.color}44;">${cfg.label}</span>
+            <span style="color:var(--muted);font-size:0.75rem;font-family:var(--font-cond);">${date}</span>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:1.5rem;font-size:0.85rem;">
+          ${leagues ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Interested In</span>${leagues}</div>` : ''}
+          ${app.experience ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Experience</span>${app.experience}</div>` : ''}
+          ${app.referred_by ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Referred By</span>${app.referred_by}</div>` : ''}
+        </div>
+        ${app.message ? `<div style="margin-top:0.75rem;padding:0.75rem;background:var(--surface2);border-radius:6px;font-size:0.85rem;color:var(--muted);line-height:1.6;font-style:italic;">"${app.message}"</div>` : ''}
+        <div style="margin-top:1rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
+          ${Object.entries(STATUS_CONFIG).map(([s, c]) => `
+            <button onclick="updateAppStatus('${app.id}', '${s}')" style="background:${status===s?c.color:'var(--surface2)'};color:${status===s?'white':'var(--muted)'};border:1px solid ${status===s?c.color:'var(--border)'};font-family:var(--font-cond);font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;padding:0.3rem 0.75rem;border-radius:4px;cursor:pointer;transition:all 0.2s;">${c.label}</button>
+          `).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function updateAppStatus(id, status) {
+  const { error } = await sb.from('prospect_applications').update({ status }).eq('id', id);
+  if (error) { showToast('Update failed: ' + error.message, 'error'); return; }
+  const app = allApplications.find(a => a.id === id);
+  if (app) app.status = status;
+  renderAppList();
+  showToast('Status updated to ' + STATUS_CONFIG[status].label, 'success');
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
