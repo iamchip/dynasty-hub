@@ -370,17 +370,23 @@ async function loadFranchises(leagueKey, year) {
     console.log('League data sample:', JSON.stringify(data?.league?.conferences || data?.league?.divisions || {}).substring(0, 400));
     const map = {};
 
-    // Build conference ID -> name map (e.g. "00" -> "AFC", "01" -> "NFC")
+    // Build division ID -> conference name map
+    // MFL: conferences contain divisions, divisions contain franchises
+    const divToConf = {};
     const conferences = data?.league?.conferences?.conference || [];
-    const confIdMap = {};
     (Array.isArray(conferences) ? conferences : [conferences]).forEach(c => {
-      confIdMap[c.id] = c.name?.includes('AFC') ? 'AFC' : c.name?.includes('NFC') ? 'NFC' : c.name || '';
+      const confName = c.name?.includes('AFC') ? 'AFC' : c.name?.includes('NFC') ? 'NFC' : c.name || '';
+      const divs = c.division || [];
+      (Array.isArray(divs) ? divs : [divs]).forEach(d => {
+        divToConf[d.id] = confName;
+      });
     });
+    console.log('divToConf map:', JSON.stringify(divToConf));
 
-    // Build franchise map using division field which holds the conference ID
+    // Build franchise map
     const franchises = data?.league?.franchises?.franchise || [];
     (Array.isArray(franchises) ? franchises : [franchises]).forEach(f => {
-      const conf = confIdMap[f.division] || (f.division === '00' ? 'AFC' : f.division === '01' ? 'NFC' : '');
+      const conf = divToConf[f.division] || '';
       map[f.id] = { name: f.name || f.id, conf };
     });
 
