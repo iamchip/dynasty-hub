@@ -247,13 +247,13 @@
   <div class="tabs" id="league-tabs">
     <button class="tab-btn active" onclick="setLeague('all', this)">All Leagues</button>
     <button class="tab-btn tcl" onclick="setLeague('tcl', this)">
-      <img src="../TCL_Icon.png" alt="TCL"/> TCL
+      <img src="./TCL_Icon.png" alt="TCL"/> TCL
     </button>
     <button class="tab-btn tdl" onclick="setLeague('tdl', this)">
-      <img src="../TDL_Icon.png" alt="TDL"/> TDL
+      <img src="./TDL_Icon.png" alt="TDL"/> TDL
     </button>
     <button class="tab-btn tsl" onclick="setLeague('tsl', this)">
-      <img src="../TSL_Icon.png" alt="TSL"/> TSL
+      <img src="./TSL_Icon.png" alt="TSL"/> TSL
     </button>
   </div>
 
@@ -277,11 +277,11 @@
 
 <script>
 const LEAGUES = {
-  tcl: { id: '54478', label: 'TCL', color: '#1a7a32', logo: '../TCL_Icon.png' },
-  tdl: { id: '39125', label: 'TDL', color: '#2b6cb0', logo: '../TDL_Icon.png' },
-  tsl: { id: '65694', label: 'TSL', color: '#c0155e', logo: '../TSL_Icon.png' },
+  tcl: { id: '54478', label: 'TCL', color: '#1a7a32', logo: './TCL_Icon.png' },
+  tdl: { id: '39125', label: 'TDL', color: '#2b6cb0', logo: './TDL_Icon.png' },
+  tsl: { id: '65694', label: 'TSL', color: '#c0155e', logo: './TSL_Icon.png' },
 };
-const CONF_LOGOS = { AFC: '../afc-logo.png', NFC: '../NFC-Logo.png' };
+const CONF_LOGOS = { AFC: './afc-logo.png', NFC: './NFC-Logo.png' };
 const POS_COLORS = {
   QB:'#e53e3e', RB:'#2b6cb0', WR:'#1a7a32', TE:'#d97706',
   K:'#8a8a8a', DEF:'#8a8a8a', DL:'#7b2d8b', LB:'#7b2d8b', DB:'#7b2d8b', default:'#555'
@@ -347,7 +347,9 @@ async function fetchDraftForLeague(leagueKey) {
     });
     if (!res.ok) return [];
     const data = await res.json();
+    console.log('MFL proxy response for', leagueKey, ':', JSON.stringify(data).substring(0, 300));
     const picks = data?.draftResults?.draftUnit?.draftPick;
+    console.log('Picks type:', typeof picks, Array.isArray(picks) ? picks.length + " picks" : "not an array", picks);
     if (!Array.isArray(picks)) return [];
     return picks.map(p => ({
       id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
