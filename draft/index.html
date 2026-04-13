@@ -370,25 +370,44 @@ async function loadFranchises(leagueKey, year) {
     console.log('League data sample:', JSON.stringify(data?.league?.conferences || data?.league?.divisions || {}).substring(0, 400));
     const map = {};
 
-    // Build division ID -> conference name map
-    // MFL: conferences contain divisions, divisions contain franchises
-    const divToConf = {};
-    const conferences = data?.league?.conferences?.conference || [];
-    (Array.isArray(conferences) ? conferences : [conferences]).forEach(c => {
-      const confName = c.name?.includes('AFC') ? 'AFC' : c.name?.includes('NFC') ? 'NFC' : c.name || '';
-      const divs = c.division || [];
-      (Array.isArray(divs) ? divs : [divs]).forEach(d => {
-        divToConf[d.id] = confName;
+    // MFL conferences endpoint returns franchise lists directly
+    // Try TYPE=conferences for direct franchise->conference mapping
+    let confData = null;
+    try {
+      confData = await proxyFetch(league.id, year, 'conferences');
+    } catch(e) {}
+
+    const franchiseToConf = {};
+    if (confData?.conferences?.conference) {
+      const confs = confData.conferences.conference;
+      (Array.isArray(confs) ? confs : [confs]).forEach(c => {
+        const confName = c.name?.includes('AFC') ? 'AFC' : c.name?.includes('NFC') ? 'NFC' : '';
+        const fids = c.franchise_id || c.franchiseId || '';
+        String(fids).split(',').forEach(fid => {
+          if (fid.trim()) franchiseToConf[fid.trim()] = confName;
+        });
       });
-    });
-    console.log('divToConf map:', JSON.stringify(divToConf));
+    }
+    console.log('franchiseToConf sample:', JSON.stringify(Object.entries(franchiseToConf).slice(0,6)));
 
     // Build franchise map
     const franchises = data?.league?.franchises?.franchise || [];
     (Array.isArray(franchises) ? franchises : [franchises]).forEach(f => {
-      const conf = divToConf[f.division] || '';
-      map[f.id] = { name: f.name || f.id, conf };
+      // Try conferences endpoint first, then fall back to division field parity check
+      const conf = franchiseToConf[f.id] || '';
+      map[f.id] = { name: f.name || f.id, conf, divId: f.division };
     });
+
+    // If conferences endpoint didnt work, split franchises by division ID parity
+    // Lower division IDs (00,01,02,03) = AFC, higher (04,05,06,07) = NFC (common MFL pattern)
+    if (Object.values(map).every(f => !f.conf)) {
+      const divIds = [...new Set(Object.values(map).map(f => f.divId).filter(Boolean))].sort();
+      const half = Math.ceil(divIds.length / 2);
+      const afcDivs = new Set(divIds.slice(0, half));
+      Object.values(map).forEach(f => {
+        f.conf = afcDivs.has(f.divId) ? 'AFC' : 'NFC';
+      });
+    }
 
     console.log('Franchise map sample:', JSON.stringify(Object.entries(map).slice(0,4)));
     franchiseCache[cacheKey] = map;
