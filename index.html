@@ -789,13 +789,25 @@ async function renderGallery(el) {
 async function loadPhotos() {
   const { data } = await sb.from('draft_photos').select('*').order('year', { ascending: false });
   photos = data || [];
+  // Build year filter buttons only for years that have photos
+  const yearsWithPhotos = GALLERY_YEARS.filter(y => photos.some(p => p.year === y));
+  const filterEl = document.getElementById('gallery-filter');
+  if (filterEl) {
+    filterEl.innerHTML = `
+      <button class="filter-btn active" style="background:#333;color:white;" onclick="setGalleryYearFilter('all')">All Years</button>
+      ${yearsWithPhotos.map(y => `
+        <button class="filter-btn" style="color:var(--text)" onclick="setGalleryYearFilter(${y})">${y}</button>
+      `).join('')}
+    `;
+  }
   renderGalleryGrid();
 }
 
 function setGalleryYearFilter(y) {
   galleryYearFilter = y;
-  document.querySelectorAll('#gallery-filter .filter-btn').forEach((btn, i) => {
-    const isActive = i === 0 ? y === 'all' : GALLERY_YEARS[i-1] === y;
+  document.querySelectorAll('#gallery-filter .filter-btn').forEach(btn => {
+    const btnYear = btn.textContent.trim();
+    const isActive = y === 'all' ? btnYear === 'All Years' : parseInt(btnYear) === y;
     btn.className = 'filter-btn' + (isActive ? ' active' : '');
     btn.style.cssText = isActive ? 'background:#333;color:white;' : 'color:var(--text)';
   });
@@ -806,11 +818,19 @@ function renderGalleryGrid() {
   const wrap = document.getElementById('gallery-sections');
   if (!wrap) return;
 
-  const yearsToShow = galleryYearFilter === 'all' ? GALLERY_YEARS : [galleryYearFilter];
+  // Only show years that have photos
+  const yearsWithPhotos = GALLERY_YEARS.filter(y => photos.some(p => p.year === y));
+  const yearsToShow = galleryYearFilter === 'all' ? yearsWithPhotos : [galleryYearFilter];
   let html = '';
+
+  if (!yearsWithPhotos.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-family:var(--font-cond);letter-spacing:1px;text-transform:uppercase;font-size:0.85rem;padding:3rem 0;text-align:center;">No photos uploaded yet.${isChampionAdmin() ? ' Use the upload button to add some!' : ''}</div>`;
+    return;
+  }
 
   for (const year of yearsToShow) {
     const yearPhotos = photos.filter(p => p.year === year);
+    if (!yearPhotos.length) continue;
     html += `<div style="margin-bottom:2.5rem;">
       <div style="font-family:var(--font-display);font-size:1.6rem;letter-spacing:3px;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border);">${year} DRAFT</div>`;
 
