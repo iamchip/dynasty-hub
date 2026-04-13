@@ -247,13 +247,13 @@
   <div class="tabs" id="league-tabs">
     <button class="tab-btn active" onclick="setLeague('all', this)">All Leagues</button>
     <button class="tab-btn tcl" onclick="setLeague('tcl', this)">
-      <img src="./TCL_Icon.png" alt="TCL"/> TCL
+      <img src="../TCL_Icon.png" alt="TCL"/> TCL
     </button>
     <button class="tab-btn tdl" onclick="setLeague('tdl', this)">
-      <img src="./TDL_Icon.png" alt="TDL"/> TDL
+      <img src="../TDL_Icon.png" alt="TDL"/> TDL
     </button>
     <button class="tab-btn tsl" onclick="setLeague('tsl', this)">
-      <img src="./TSL_Icon.png" alt="TSL"/> TSL
+      <img src="../TSL_Icon.png" alt="TSL"/> TSL
     </button>
   </div>
 
@@ -277,11 +277,11 @@
 
 <script>
 const LEAGUES = {
-  tcl: { id: '54478', label: 'TCL', color: '#1a7a32', logo: './TCL_Icon.png' },
-  tdl: { id: '39125', label: 'TDL', color: '#2b6cb0', logo: './TDL_Icon.png' },
-  tsl: { id: '65694', label: 'TSL', color: '#c0155e', logo: './TSL_Icon.png' },
+  tcl: { id: '54478', label: 'TCL', color: '#1a7a32', logo: '../TCL_Icon.png' },
+  tdl: { id: '39125', label: 'TDL', color: '#2b6cb0', logo: '../TDL_Icon.png' },
+  tsl: { id: '65694', label: 'TSL', color: '#c0155e', logo: '../TSL_Icon.png' },
 };
-const CONF_LOGOS = { AFC: './afc-logo.png', NFC: './NFC-Logo.png' };
+const CONF_LOGOS = { AFC: '../afc-logo.png', NFC: '../NFC-Logo.png' };
 const POS_COLORS = {
   QB:'#e53e3e', RB:'#2b6cb0', WR:'#1a7a32', TE:'#d97706',
   K:'#8a8a8a', DEF:'#8a8a8a', DL:'#7b2d8b', LB:'#7b2d8b', DB:'#7b2d8b', default:'#555'
@@ -337,13 +337,11 @@ function switchYear(year, isCurrent) {
 async function fetchDraftForLeague(leagueKey) {
   const league = LEAGUES[leagueKey];
   try {
-    const res = await fetch('https://zwprcshjvjgvaapyfmba.supabase.co/functions/v1/mfl-proxy', {
-      method: 'POST',
+    const proxyUrl = `https://zwprcshjvjgvaapyfmba.supabase.co/functions/v1/mfl-proxy?leagueId=${league.id}&year=${viewingYear}&type=draftResults`;
+    const res = await fetch(proxyUrl, {
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk'
-      },
-      body: JSON.stringify({ leagueId: league.id, year: viewingYear, type: 'draftResults' })
+      }
     });
     if (!res.ok) return [];
     const data = await res.json();
