@@ -370,46 +370,19 @@ async function loadFranchises(leagueKey, year) {
     console.log('League data sample:', JSON.stringify(data?.league?.conferences || data?.league?.divisions || {}).substring(0, 400));
     const map = {};
 
-    // Build franchise name map first
+    // Build conference ID -> name map (e.g. "00" -> "AFC", "01" -> "NFC")
+    const conferences = data?.league?.conferences?.conference || [];
+    const confIdMap = {};
+    (Array.isArray(conferences) ? conferences : [conferences]).forEach(c => {
+      confIdMap[c.id] = c.name?.includes('AFC') ? 'AFC' : c.name?.includes('NFC') ? 'NFC' : c.name || '';
+    });
+
+    // Build franchise map using division field which holds the conference ID
     const franchises = data?.league?.franchises?.franchise || [];
     (Array.isArray(franchises) ? franchises : [franchises]).forEach(f => {
-      map[f.id] = { name: f.name || f.id, conf: '', divisionId: f.division || '' };
+      const conf = confIdMap[f.division] || (f.division === '00' ? 'AFC' : f.division === '01' ? 'NFC' : '');
+      map[f.id] = { name: f.name || f.id, conf };
     });
-
-    // Try conferences -> divisions -> franchises structure
-    const conferences = data?.league?.conferences?.conference || [];
-    (Array.isArray(conferences) ? conferences : [conferences]).forEach(conf => {
-      const confName = conf.name?.includes('AFC') ? 'AFC' : conf.name?.includes('NFC') ? 'NFC' : conf.name || '';
-      const confDivs = conf.division || [];
-      (Array.isArray(confDivs) ? confDivs : [confDivs]).forEach(div => {
-        const divFranchises = div.franchise || [];
-        (Array.isArray(divFranchises) ? divFranchises : [divFranchises]).forEach(f => {
-          if (map[f.id]) map[f.id].conf = confName;
-        });
-      });
-    });
-
-    // Fallback: try divisions with AFC/NFC in name
-    if (Object.values(map).every(f => !f.conf)) {
-      const divs = data?.league?.divisions?.division || [];
-      (Array.isArray(divs) ? divs : [divs]).forEach(d => {
-        const confName = d.name?.toUpperCase().includes('AFC') ? 'AFC' :
-                         d.name?.toUpperCase().includes('NFC') ? 'NFC' : '';
-        const divFranchises = d.franchise || [];
-        (Array.isArray(divFranchises) ? divFranchises : [divFranchises]).forEach(f => {
-          if (map[f.id]) map[f.id].conf = confName;
-        });
-      });
-    }
-
-    // Fallback 2: use divisionId field on franchise if present
-    if (Object.values(map).every(f => !f.conf)) {
-      Object.values(map).forEach(f => {
-        if (f.divisionId) {
-          f.conf = f.divisionId.includes('AFC') ? 'AFC' : f.divisionId.includes('NFC') ? 'NFC' : '';
-        }
-      });
-    }
 
     console.log('Franchise map sample:', JSON.stringify(Object.entries(map).slice(0,4)));
     franchiseCache[cacheKey] = map;
