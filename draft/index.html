@@ -367,24 +367,54 @@ async function loadFranchises(leagueKey, year) {
   const league = LEAGUES[leagueKey];
   try {
     const data = await proxyFetch(league.id, year, 'league');
-    const franchises = data?.league?.franchises?.franchise || [];
+    console.log('League data sample:', JSON.stringify(data?.league?.conferences || data?.league?.divisions || {}).substring(0, 400));
     const map = {};
+
+    // Build franchise name map first
+    const franchises = data?.league?.franchises?.franchise || [];
     (Array.isArray(franchises) ? franchises : [franchises]).forEach(f => {
-      map[f.id] = { name: f.name || f.id, conf: f.division?.includes('AFC') || f.bbidAvailableBalance ? 'AFC' : '' };
+      map[f.id] = { name: f.name || f.id, conf: '', divisionId: f.division || '' };
     });
-    // Also try to get conference from divisions
-    const divs = data?.league?.divisions?.division || [];
-    (Array.isArray(divs) ? divs : [divs]).forEach(d => {
-      const conf = d.name?.includes('AFC') ? 'AFC' : d.name?.includes('NFC') ? 'NFC' : '';
-      if (conf && d.franchise) {
-        (Array.isArray(d.franchise) ? d.franchise : [d.franchise]).forEach(f => {
-          if (map[f.id]) map[f.id].conf = conf;
+
+    // Try conferences -> divisions -> franchises structure
+    const conferences = data?.league?.conferences?.conference || [];
+    (Array.isArray(conferences) ? conferences : [conferences]).forEach(conf => {
+      const confName = conf.name?.includes('AFC') ? 'AFC' : conf.name?.includes('NFC') ? 'NFC' : conf.name || '';
+      const confDivs = conf.division || [];
+      (Array.isArray(confDivs) ? confDivs : [confDivs]).forEach(div => {
+        const divFranchises = div.franchise || [];
+        (Array.isArray(divFranchises) ? divFranchises : [divFranchises]).forEach(f => {
+          if (map[f.id]) map[f.id].conf = confName;
         });
-      }
+      });
     });
+
+    // Fallback: try divisions with AFC/NFC in name
+    if (Object.values(map).every(f => !f.conf)) {
+      const divs = data?.league?.divisions?.division || [];
+      (Array.isArray(divs) ? divs : [divs]).forEach(d => {
+        const confName = d.name?.toUpperCase().includes('AFC') ? 'AFC' :
+                         d.name?.toUpperCase().includes('NFC') ? 'NFC' : '';
+        const divFranchises = d.franchise || [];
+        (Array.isArray(divFranchises) ? divFranchises : [divFranchises]).forEach(f => {
+          if (map[f.id]) map[f.id].conf = confName;
+        });
+      });
+    }
+
+    // Fallback 2: use divisionId field on franchise if present
+    if (Object.values(map).every(f => !f.conf)) {
+      Object.values(map).forEach(f => {
+        if (f.divisionId) {
+          f.conf = f.divisionId.includes('AFC') ? 'AFC' : f.divisionId.includes('NFC') ? 'NFC' : '';
+        }
+      });
+    }
+
+    console.log('Franchise map sample:', JSON.stringify(Object.entries(map).slice(0,4)));
     franchiseCache[cacheKey] = map;
     return map;
-  } catch(e) { return {}; }
+  } catch(e) { console.warn('loadFranchises failed:', e); return {}; }
 }
 
 async function fetchDraftForLeague(leagueKey) {
