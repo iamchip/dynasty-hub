@@ -336,38 +336,36 @@ function switchYear(year, isCurrent) {
 
 async function fetchDraftForLeague(leagueKey) {
   const league = LEAGUES[leagueKey];
-  const mflUrl = `https://api.myfantasyleague.com/${viewingYear}/export?TYPE=draftResults&L=${league.id}&APIKEY=&JSON=1`;
-  const urls = [
-    mflUrl,
-    `https://corsproxy.io/?${encodeURIComponent(mflUrl)}`,
-    `https://api.allorigins.win/get?url=${encodeURIComponent(mflUrl)}`,
-  ];
-  for (const url of urls) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      let data = await res.json();
-      if (data.contents) data = JSON.parse(data.contents);
-      const picks = data?.draftResults?.draftUnit?.draftPick;
-      if (!Array.isArray(picks)) continue;
-      return picks.map(p => ({
-        id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
-        leagueKey,
-        round: parseInt(p.round),
-        pick: parseInt(p.pick),
-        overall: parseInt(p.overall || 0),
-        player: p.playerName || p.player || 'Unknown Player',
-        pos: p.pos || '—',
-        nflTeam: p.nflTeam || '',
-        franchise: p.franchiseName || p.franchise || '',
-        conf: p.division?.includes('AFC') ? 'AFC' : p.division?.includes('NFC') ? 'NFC' : '',
-        timestamp: parseInt(p.timestamp || 0),
-      }));
-    } catch(e) {
-      console.warn(`Fetch attempt failed for ${leagueKey} via ${url}:`, e.message);
-    }
+  try {
+    const res = await fetch('https://zwprcshjvjgvaapyfmba.supabase.co/functions/v1/mfl-proxy', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk'
+      },
+      body: JSON.stringify({ leagueId: league.id, year: viewingYear, type: 'draftResults' })
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const picks = data?.draftResults?.draftUnit?.draftPick;
+    if (!Array.isArray(picks)) return [];
+    return picks.map(p => ({
+      id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
+      leagueKey,
+      round: parseInt(p.round),
+      pick: parseInt(p.pick),
+      overall: parseInt(p.overall || 0),
+      player: p.playerName || p.player || 'Unknown Player',
+      pos: p.pos || '—',
+      nflTeam: p.nflTeam || '',
+      franchise: p.franchiseName || p.franchise || '',
+      conf: p.division?.includes('AFC') ? 'AFC' : p.division?.includes('NFC') ? 'NFC' : '',
+      timestamp: parseInt(p.timestamp || 0),
+    }));
+  } catch(e) {
+    console.warn(`Fetch failed for ${leagueKey}:`, e.message);
+    return [];
   }
-  return [];
 }
 
 async function fetchAllDrafts() {
