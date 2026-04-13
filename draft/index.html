@@ -346,9 +346,16 @@ async function fetchDraftForLeague(leagueKey) {
     if (!res.ok) return [];
     const data = await res.json();
     console.log('MFL proxy response for', leagueKey, ':', JSON.stringify(data).substring(0, 300));
-    const picks = data?.draftResults?.draftUnit?.draftPick;
-    console.log('Picks type:', typeof picks, Array.isArray(picks) ? picks.length + " picks" : "not an array", picks);
-    if (!Array.isArray(picks)) return [];
+    // draftUnit can be an object or an array of conference units — flatten all picks
+    const draftUnit = data?.draftResults?.draftUnit;
+    let picks = [];
+    if (Array.isArray(draftUnit)) {
+      picks = draftUnit.flatMap(u => Array.isArray(u.draftPick) ? u.draftPick : []);
+    } else if (draftUnit?.draftPick) {
+      picks = Array.isArray(draftUnit.draftPick) ? draftUnit.draftPick : [draftUnit.draftPick];
+    }
+    console.log('Picks found:', picks.length, 'for', leagueKey, viewingYear);
+    if (!picks.length) return [];
     return picks.map(p => ({
       id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
       leagueKey,
