@@ -336,30 +336,38 @@ function switchYear(year, isCurrent) {
 
 async function fetchDraftForLeague(leagueKey) {
   const league = LEAGUES[leagueKey];
-  const url = `https://api.myfantasyleague.com/${viewingYear}/export?TYPE=draftResults&L=${league.id}&APIKEY=&JSON=1`;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    const picks = data?.draftResults?.draftUnit?.draftPick;
-    if (!Array.isArray(picks)) return [];
-    return picks.map(p => ({
-      id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
-      leagueKey,
-      round: parseInt(p.round),
-      pick: parseInt(p.pick),
-      overall: parseInt(p.overall || 0),
-      player: p.playerName || p.player || 'Unknown Player',
-      pos: p.pos || '—',
-      nflTeam: p.nflTeam || '',
-      franchise: p.franchiseName || p.franchise || '',
-      conf: p.division?.includes('AFC') ? 'AFC' : p.division?.includes('NFC') ? 'NFC' : '',
-      timestamp: parseInt(p.timestamp || 0),
-    }));
-  } catch(e) {
-    console.warn(`Failed to fetch ${leagueKey}:`, e);
-    return [];
+  const mflUrl = `https://api.myfantasyleague.com/${viewingYear}/export?TYPE=draftResults&L=${league.id}&APIKEY=&JSON=1`;
+  const urls = [
+    mflUrl,
+    `https://corsproxy.io/?${encodeURIComponent(mflUrl)}`,
+    `https://api.allorigins.win/get?url=${encodeURIComponent(mflUrl)}`,
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      let data = await res.json();
+      if (data.contents) data = JSON.parse(data.contents);
+      const picks = data?.draftResults?.draftUnit?.draftPick;
+      if (!Array.isArray(picks)) continue;
+      return picks.map(p => ({
+        id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
+        leagueKey,
+        round: parseInt(p.round),
+        pick: parseInt(p.pick),
+        overall: parseInt(p.overall || 0),
+        player: p.playerName || p.player || 'Unknown Player',
+        pos: p.pos || '—',
+        nflTeam: p.nflTeam || '',
+        franchise: p.franchiseName || p.franchise || '',
+        conf: p.division?.includes('AFC') ? 'AFC' : p.division?.includes('NFC') ? 'NFC' : '',
+        timestamp: parseInt(p.timestamp || 0),
+      }));
+    } catch(e) {
+      console.warn(`Fetch attempt failed for ${leagueKey} via ${url}:`, e.message);
+    }
   }
+  return [];
 }
 
 async function fetchAllDrafts() {
