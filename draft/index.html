@@ -334,41 +334,98 @@ function switchYear(year, isCurrent) {
   fetchAllDrafts();
 }
 
+// Cache player names and franchise names per league+year
+const playerCache = {};
+const franchiseCache = {};
+
+async function proxyFetch(leagueId, year, type) {
+  const url = `https://zwprcshjvjgvaapyfmba.supabase.co/functions/v1/mfl-proxy?leagueId=${leagueId}&year=${year}&type=${type}`;
+  const res = await fetch(url, { headers: { 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk' } });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+async function loadPlayers(leagueKey, year) {
+  const cacheKey = `${leagueKey}-${year}`;
+  if (playerCache[cacheKey]) return playerCache[cacheKey];
+  const league = LEAGUES[leagueKey];
+  try {
+    const data = await proxyFetch(league.id, year, 'players');
+    const players = data?.players?.player || [];
+    const map = {};
+    (Array.isArray(players) ? players : [players]).forEach(p => {
+      map[p.id] = { name: `${p.name}`, pos: p.position || '—', nflTeam: p.team || '' };
+    });
+    playerCache[cacheKey] = map;
+    return map;
+  } catch(e) { return {}; }
+}
+
+async function loadFranchises(leagueKey, year) {
+  const cacheKey = `${leagueKey}-${year}`;
+  if (franchiseCache[cacheKey]) return franchiseCache[cacheKey];
+  const league = LEAGUES[leagueKey];
+  try {
+    const data = await proxyFetch(league.id, year, 'league');
+    const franchises = data?.league?.franchises?.franchise || [];
+    const map = {};
+    (Array.isArray(franchises) ? franchises : [franchises]).forEach(f => {
+      map[f.id] = { name: f.name || f.id, conf: f.division?.includes('AFC') || f.bbidAvailableBalance ? 'AFC' : '' };
+    });
+    // Also try to get conference from divisions
+    const divs = data?.league?.divisions?.division || [];
+    (Array.isArray(divs) ? divs : [divs]).forEach(d => {
+      const conf = d.name?.includes('AFC') ? 'AFC' : d.name?.includes('NFC') ? 'NFC' : '';
+      if (conf && d.franchise) {
+        (Array.isArray(d.franchise) ? d.franchise : [d.franchise]).forEach(f => {
+          if (map[f.id]) map[f.id].conf = conf;
+        });
+      }
+    });
+    franchiseCache[cacheKey] = map;
+    return map;
+  } catch(e) { return {}; }
+}
+
 async function fetchDraftForLeague(leagueKey) {
   const league = LEAGUES[leagueKey];
   try {
-    const proxyUrl = `https://zwprcshjvjgvaapyfmba.supabase.co/functions/v1/mfl-proxy?leagueId=${league.id}&year=${viewingYear}&type=draftResults`;
-    const res = await fetch(proxyUrl, {
-      headers: {
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk'
-      }
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    console.log('MFL proxy response for', leagueKey, ':', JSON.stringify(data).substring(0, 300));
-    // draftUnit can be an object or an array of conference units — flatten all picks
-    const draftUnit = data?.draftResults?.draftUnit;
-    let picks = [];
+    // Fetch draft results, players, and franchises in parallel
+    const [draftData, playerMap, franchiseMap] = await Promise.all([
+      proxyFetch(league.id, viewingYear, 'draftResults'),
+      loadPlayers(leagueKey, viewingYear),
+      loadFranchises(leagueKey, viewingYear),
+    ]);
+
+    if (!draftData) return [];
+    const draftUnit = draftData?.draftResults?.draftUnit;
+    let rawPicks = [];
     if (Array.isArray(draftUnit)) {
-      picks = draftUnit.flatMap(u => Array.isArray(u.draftPick) ? u.draftPick : []);
+      rawPicks = draftUnit.flatMap(u => Array.isArray(u.draftPick) ? u.draftPick : []);
     } else if (draftUnit?.draftPick) {
-      picks = Array.isArray(draftUnit.draftPick) ? draftUnit.draftPick : [draftUnit.draftPick];
+      rawPicks = Array.isArray(draftUnit.draftPick) ? draftUnit.draftPick : [draftUnit.draftPick];
     }
-    console.log('Picks found:', picks.length, 'for', leagueKey, viewingYear);
-    if (!picks.length) return [];
-    return picks.map(p => ({
-      id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
-      leagueKey,
-      round: parseInt(p.round),
-      pick: parseInt(p.pick),
-      overall: parseInt(p.overall || 0),
-      player: p.playerName || p.player || 'Unknown Player',
-      pos: p.pos || '—',
-      nflTeam: p.nflTeam || '',
-      franchise: p.franchiseName || p.franchise || '',
-      conf: p.division?.includes('AFC') ? 'AFC' : p.division?.includes('NFC') ? 'NFC' : '',
-      timestamp: parseInt(p.timestamp || 0),
-    }));
+
+    // Filter out empty picks (no player assigned = draft hasn't happened)
+    const madePicks = rawPicks.filter(p => p.player && p.player !== '' && p.timestamp && p.timestamp !== '');
+
+    return madePicks.map(p => {
+      const playerInfo = playerMap[p.player] || {};
+      const franchiseInfo = franchiseMap[p.franchise] || {};
+      return {
+        id: `${leagueKey}-${viewingYear}-${p.round}-${p.pick}-${p.franchise}`,
+        leagueKey,
+        round: parseInt(p.round),
+        pick: parseInt(p.pick),
+        overall: parseInt(p.overall || 0),
+        player: playerInfo.name || p.playerName || `Player ${p.player}`,
+        pos: playerInfo.pos || p.pos || '—',
+        nflTeam: playerInfo.nflTeam || p.nflTeam || '',
+        franchise: franchiseInfo.name || `Franchise ${p.franchise}`,
+        conf: franchiseInfo.conf || '',
+        timestamp: parseInt(p.timestamp || 0),
+      };
+    });
   } catch(e) {
     console.warn(`Fetch failed for ${leagueKey}:`, e.message);
     return [];
@@ -376,8 +433,10 @@ async function fetchDraftForLeague(leagueKey) {
 }
 
 async function fetchAllDrafts() {
+  document.getElementById('last-updated').textContent = 'Loading...';
   const results = await Promise.all(Object.keys(LEAGUES).map(fetchDraftForLeague));
-  const fresh = results.flat().sort((a,b) => b.timestamp - a.timestamp || b.overall - a.overall);
+  // Sort by round then pick number (not timestamp) for clean ordering
+  const fresh = results.flat().sort((a,b) => a.round - b.round || a.pick - b.pick);
 
   if (isViewingCurrent) {
     const newIds = new Set(fresh.map(p => p.id));
@@ -388,7 +447,8 @@ async function fetchAllDrafts() {
   }
 
   allPicks = fresh;
-  isLive = isViewingCurrent && fresh.length > 0;
+  const madePicks = fresh.filter(p => p.player && !p.player.startsWith('Player '));
+  isLive = isViewingCurrent && madePicks.length > 0;
 
   updateLiveIndicator();
   updateRoundFilters();
@@ -397,7 +457,7 @@ async function fetchAllDrafts() {
   document.getElementById('last-updated').textContent =
     isViewingCurrent ? 'Updated ' + new Date().toLocaleTimeString() : `${viewingYear} Season Archive`;
   document.getElementById('draft-subtitle').textContent =
-    `${viewingYear} Season · ${fresh.length} picks across all leagues${!isViewingCurrent ? ' · Archive' : ''}`;
+    `${viewingYear} Season · ${madePicks.length} picks across all leagues${!isViewingCurrent ? ' · Archive' : ''}`;
 }
 
 function updateLiveIndicator() {
