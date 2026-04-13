@@ -1133,6 +1133,16 @@ function renderJoin(el) {
               <label>Discord Username</label>
               <input type="text" name="discord" placeholder="johndoe#1234 or @johndoe"/>
             </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>City</label>
+                <input type="text" name="city" placeholder="e.g. Dallas"/>
+              </div>
+              <div class="form-group">
+                <label>State / Region</label>
+                <input type="text" name="state" placeholder="e.g. TX"/>
+              </div>
+            </div>
             <div class="form-group">
               <label>Years of Fantasy Football Experience</label>
               <select name="experience">
@@ -1218,6 +1228,8 @@ async function submitApplication(e) {
     last_name: form.last_name.value.trim(),
     email: form.email.value.trim(),
     discord: form.discord.value.trim() || null,
+    city: form.city.value.trim() || null,
+    state: form.state.value.trim() || null,
     experience: form.experience.value || null,
     leagues_interested: leagues,
     message: form.message.value.trim() || null,
@@ -1317,6 +1329,7 @@ function renderAppList() {
         <div style="margin-top:0.75rem;display:flex;flex-wrap:wrap;gap:1.5rem;font-size:0.85rem;">
           ${leagues ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Interested In</span>${leagues}</div>` : ''}
           ${app.experience ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Experience</span>${app.experience}</div>` : ''}
+          ${(app.city || app.state) ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Location</span>${[app.city, app.state].filter(Boolean).join(', ')}</div>` : ''}
           ${app.referred_by ? `<div><span style="color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:2px;">Referred By</span>${app.referred_by}</div>` : ''}
         </div>
         ${app.message ? `<div style="margin-top:0.75rem;padding:0.75rem;background:var(--surface2);border-radius:6px;font-size:0.85rem;color:var(--muted);line-height:1.6;font-style:italic;">"${app.message}"</div>` : ''}
