@@ -294,6 +294,7 @@ function renderLoginList(){
     const timeStr=diffMins<1?'Just now':diffMins<60?`${diffMins}m ago`:diffHrs<24?`${diffHrs}h ago`:diffDays<7?`${diffDays}d ago`:date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     const initials=(l.discord_name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
     const isRecent=diffMins<30;
+    const pageLabel = l.page || 'Sign-in';
     return `<div class="login-item">
       <div class="login-avatar">
         ${l.avatar_url?`<img src="${l.avatar_url}" alt="${l.discord_name}" onerror="this.parentElement.textContent='${initials}'"/>`:`${initials}`}
@@ -301,6 +302,7 @@ function renderLoginList(){
       <div class="login-info">
         <div class="login-name">${l.discord_name||'Unknown'}</div>
         <div class="login-time">${timeStr} · ${date.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+        <div style="font-family:var(--font-cond);font-size:0.65rem;letter-spacing:1.5px;color:#444;text-transform:uppercase;margin-top:1px;">${pageLabel}</div>
       </div>
       ${isRecent?`<span class="login-new">Online</span>`:''}
     </div>`;
