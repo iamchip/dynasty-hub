@@ -309,7 +309,7 @@ function renderLoginList(){
         <div class="login-time">${timeStr} · ${date.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
         <div style="font-family:var(--font-cond);font-size:0.65rem;letter-spacing:1.5px;color:#444;text-transform:uppercase;margin-top:1px;">${pageLabel}</div>
       </div>
-      ${isRecent?`<span class="login-new">Online</span>`:''}
+      ${isRecent?`<span class="login-new">Recent</span>`:''}
     </div>`;
   }).join('');
 }
