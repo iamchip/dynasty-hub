@@ -480,7 +480,9 @@ function renderNav() {
   const pages = ['home','champions','gallery','join'];
   const labels = { home: 'Home', champions: 'Champions', gallery: 'Draft Gallery', join: 'Apply to Join ' };
   const nl = document.getElementById('nav-links');
-  let navHtml = pages.map(p => `
+  const draftLink = `<a href="https://draft.dynasty-leagues.com" style="background:none;border:none;color:var(--muted);font-family:var(--font-cond);font-size:0.85rem;letter-spacing:1.5px;text-transform:uppercase;padding:0.4rem 0.9rem;cursor:pointer;text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">Draft Day</a>`;
+  let navHtml = pages.map((p,i) => `
+    ${p === 'champions' ? draftLink : ''}
     <button class="${currentPage===p?'active':''}" onclick="navigateTo('${p}')">${labels[p]}</button>
   `).join('');
   if (isApplicationAdmin()) {
