@@ -403,12 +403,21 @@ async function initAuth() {
   }
 }
 
-async function logUserLogin(u) {
+async function logUserLogin(u, page) {
   try {
     const name = u.user_metadata?.full_name || u.user_metadata?.name || u.user_metadata?.global_name || 'Unknown';
     const avatar = u.user_metadata?.avatar_url || '';
-    await sb.from('admin_logins').insert({ discord_name: name, avatar_url: avatar, user_id: u.id });
+    await sb.from('admin_logins').insert({ discord_name: name, avatar_url: avatar, user_id: u.id, page: page || 'sign-in' });
   } catch(e) { console.warn('Login log failed:', e); }
+}
+
+async function logPageVisit(page) {
+  if (!user) return;
+  try {
+    const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.global_name || 'Unknown';
+    const avatar = user.user_metadata?.avatar_url || '';
+    await sb.from('admin_logins').insert({ discord_name: name, avatar_url: avatar, user_id: user.id, page });
+  } catch(e) {}
 }
 
 function isChampionAdmin() {
@@ -523,11 +532,26 @@ function renderNav() {
 }
 
 // ── ROUTER ────────────────────────────────────────────────────────────────────
+const PAGE_LABELS = {
+  home: 'Home', champions: 'Champions', gallery: 'Draft Gallery',
+  join: 'Apply to Join'
+};
+
 function navigateTo(page) {
   currentPage = page;
   renderNav();
   renderPage(page);
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Log page visits for signed-in users (debounced to avoid rapid clicks)
+  if (user) {
+    clearTimeout(window._navLogTimer);
+    window._navLogTimer = setTimeout(() => {
+      const label = page.startsWith('docs-')
+        ? page.replace('docs-', '').toUpperCase() + ' Resources'
+        : PAGE_LABELS[page] || page;
+      logPageVisit(label);
+    }, 800);
+  }
 }
 
 function renderPage(page) {
