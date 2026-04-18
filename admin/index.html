@@ -213,9 +213,9 @@ async function loadApplications(){
 }
 
 async function loadLogins(){
-  const{data}=await sb.from('admin_logins').select('*').order('created_at',{ascending:false}).limit(25);
+  const{data}=await sb.from('admin_logins').select('*').order('created_at',{ascending:false}).limit(50);
   logins=data||[];
-  document.getElementById('logins-count').textContent=`Last ${logins.length}`;
+  document.getElementById('logins-count').textContent=`Last ${logins.length} sign-ins`;
   renderLoginList();
 }
 
@@ -275,7 +275,7 @@ async function updateStatus(id,status){
 async function deleteApplication(id){
   if(!confirm('Delete this application? This cannot be undone.'))return;
   const{error}=await sb.from('prospect_applications').delete().eq('id',id);
-  if(error){showToast('Delete failed','error');return;}
+  if(error){console.error('Delete error:',error);showToast('Delete failed: '+error.message,'error');return;}
   applications=applications.filter(a=>a.id!==id);
   document.getElementById('apps-count').textContent=`${applications.length} total`;
   renderAppList();
