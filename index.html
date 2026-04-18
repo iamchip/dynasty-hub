@@ -329,7 +329,7 @@ window._debug = () => {
 
 // ── AUTH ──────────────────────────────────────────────────────────────────────
 // Discord user IDs allowed to edit champions (add/remove from this list)
-const CHAMPION_ADMINS = ['227860796003057677', '260855372183502848'];
+const CHAMPION_ADMINS = ['227860796003057677'];
 const APPLICATION_ADMINS = ['227860796003057677', '260855372183502848', '501532602948255745'];
 
 function isApplicationAdmin() {
@@ -477,12 +477,16 @@ async function signOut() {
 
 // ── NAV ───────────────────────────────────────────────────────────────────────
 function renderNav() {
-  const pages = ['home','champions','gallery','join', ...(isApplicationAdmin() ? ['applications'] : [])];
-  const labels = { home: 'Home', champions: 'Champions', gallery: 'Draft Gallery', join: 'Apply to Join ', applications: 'Applications' };
+  const pages = ['home','champions','gallery','join'];
+  const labels = { home: 'Home', champions: 'Champions', gallery: 'Draft Gallery', join: 'Apply to Join ' };
   const nl = document.getElementById('nav-links');
-  nl.innerHTML = pages.map(p => `
+  let navHtml = pages.map(p => `
     <button class="${currentPage===p?'active':''}" onclick="navigateTo('${p}')">${labels[p]}</button>
   `).join('');
+  if (isApplicationAdmin()) {
+    navHtml += `<a href="https://dynasty-leagues.com/admin" style="background:none;border:1px solid rgba(255,255,255,0.12);color:var(--muted);font-family:var(--font-cond);font-size:0.85rem;letter-spacing:1.5px;text-transform:uppercase;padding:0.4rem 0.9rem;border-radius:6px;cursor:pointer;text-decoration:none;transition:all 0.2s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='rgba(255,255,255,0.25)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='rgba(255,255,255,0.12)'">Admin</a>`;
+  }
+  nl.innerHTML = navHtml;
 
   const nu = document.getElementById('nav-user');
   if (user) {
