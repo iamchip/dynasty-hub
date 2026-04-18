@@ -609,6 +609,33 @@ function updateTicker() {
 buildYearSelector();
 fetchAllDrafts();
 pollInterval = setInterval(fetchAllDrafts, 45000);
+
+// Log page visit to admin_logins via Supabase REST
+async function logDraftVisit() {
+  try {
+    const SUPABASE_URL = 'https://zwprcshjvjgvaapyfmba.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk';
+    // Get existing session from Supabase storage
+    const sessionKey = Object.keys(localStorage).find(k => k.includes('supabase') && k.includes('session'));
+    if (!sessionKey) return;
+    const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{}');
+    const u = sessionData?.user;
+    if (!u) return;
+    const name = u.user_metadata?.full_name || u.user_metadata?.name || u.user_metadata?.global_name || 'Unknown';
+    const avatar = u.user_metadata?.avatar_url || '';
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_logins`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ discord_name: name, avatar_url: avatar, user_id: u.id, page: 'Draft Day' })
+    });
+  } catch(e) {}
+}
+logDraftVisit();
 </script>
 </body>
 </html>
