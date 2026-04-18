@@ -366,11 +366,16 @@ async function initAuth() {
       renderPage(currentPage);
     } else if (session?.user) {
       if (session.provider_token) cachedProviderToken = session.provider_token;
+      const isNewLogin = !user || user.id !== session.user.id;
       user = session.user;
       console.log("isAdmin:", isChampionAdmin());
       // Clean up code from URL
       if (window.location.search.includes('code=')) {
         window.history.replaceState({}, '', window.location.pathname);
+      }
+      // Log login to admin_logins on fresh sign-in
+      if (_event === 'SIGNED_IN' || isNewLogin) {
+        logUserLogin(session.user);
       }
       renderNav();
       renderPage(currentPage);
@@ -396,6 +401,14 @@ async function initAuth() {
       </div>`;
     renderNav();
   }
+}
+
+async function logUserLogin(u) {
+  try {
+    const name = u.user_metadata?.full_name || u.user_metadata?.name || u.user_metadata?.global_name || 'Unknown';
+    const avatar = u.user_metadata?.avatar_url || '';
+    await sb.from('admin_logins').insert({ discord_name: name, avatar_url: avatar, user_id: u.id });
+  } catch(e) { console.warn('Login log failed:', e); }
 }
 
 function isChampionAdmin() {
