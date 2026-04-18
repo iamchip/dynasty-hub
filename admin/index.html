@@ -257,6 +257,7 @@ function renderAppList(){
             style="${status===s?`background:${c.color};border-color:${c.color};`:''}">
             ${c.label}
           </button>`).join('')}
+        <button onclick="deleteApplication('${app.id}')" class="status-btn" style="margin-left:auto;color:rgba(255,255,255,0.2);" onmouseover="this.style.color='#e53e3e'" onmouseout="this.style.color='rgba(255,255,255,0.2)'">✕ Delete</button>
       </div>
     </div>`;
   }).join('');
@@ -269,6 +270,16 @@ async function updateStatus(id,status){
   if(app)app.status=status;
   renderAppList();
   showToast(`Status → ${STATUS_CONFIG[status].label}`);
+}
+
+async function deleteApplication(id){
+  if(!confirm('Delete this application? This cannot be undone.'))return;
+  const{error}=await sb.from('prospect_applications').delete().eq('id',id);
+  if(error){showToast('Delete failed','error');return;}
+  applications=applications.filter(a=>a.id!==id);
+  document.getElementById('apps-count').textContent=`${applications.length} total`;
+  renderAppList();
+  showToast('Application deleted.');
 }
 
 function renderLoginList(){
