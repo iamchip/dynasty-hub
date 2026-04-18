@@ -366,16 +366,13 @@ async function initAuth() {
       renderPage(currentPage);
     } else if (session?.user) {
       if (session.provider_token) cachedProviderToken = session.provider_token;
-      const isNewLogin = !user || user.id !== session.user.id;
       user = session.user;
       console.log("isAdmin:", isChampionAdmin());
-      // Clean up code from URL
+      // Clean up code from URL — presence of code means this is a genuine fresh login
       if (window.location.search.includes('code=')) {
         window.history.replaceState({}, '', window.location.pathname);
-      }
-      // Log login to admin_logins on fresh sign-in
-      if (_event === 'SIGNED_IN' || isNewLogin) {
-        logUserLogin(session.user);
+        // Only log on real Discord OAuth redirect, not session restores
+        logUserLogin(session.user, 'Sign-in');
       }
       renderNav();
       renderPage(currentPage);
