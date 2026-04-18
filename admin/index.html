@@ -274,7 +274,11 @@ async function updateStatus(id,status){
 
 async function deleteApplication(id){
   if(!confirm('Delete this application? This cannot be undone.'))return;
-  const{error}=await sb.from('prospect_applications').delete().eq('id',id);
+  // Verify row exists first
+  const{data:check,error:checkErr}=await sb.from('prospect_applications').select('id').eq('id',id).single();
+  if(checkErr||!check){showToast('Could not find application','error');return;}
+  const{error,data}=await sb.from('prospect_applications').delete().eq('id',id).select();
+  console.log('Delete result:', {error, data});
   if(error){console.error('Delete error:',error);showToast('Delete failed: '+error.message,'error');return;}
   applications=applications.filter(a=>a.id!==id);
   document.getElementById('apps-count').textContent=`${applications.length} total`;
