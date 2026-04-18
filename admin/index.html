@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin — The Dynasty Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#0a0a0a; --surface:#111; --surface2:#1a1a1a;
+    --border:rgba(255,255,255,0.08); --text:#f0f0f0; --muted:#666;
+    --font-display:'Bebas Neue',sans-serif; --font-body:'Barlow',sans-serif; --font-cond:'Barlow Condensed',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;}
+  nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,0.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:60px;}
+  .nav-logo{font-family:var(--font-display);font-size:1.6rem;letter-spacing:3px;}
+  .nav-logo span{font-family:var(--font-cond);font-size:0.7rem;letter-spacing:4px;color:var(--muted);display:block;margin-top:-3px;}
+  .nav-right{display:flex;align-items:center;gap:1rem;}
+  .back-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--font-cond);font-size:0.8rem;letter-spacing:1.5px;text-transform:uppercase;padding:0.4rem 0.9rem;border-radius:4px;cursor:pointer;text-decoration:none;transition:all 0.2s;}
+  .back-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+  .avatar{width:32px;height:32px;border-radius:50%;object-fit:cover;}
+  main{max-width:1200px;margin:0 auto;padding:2rem 1.5rem 4rem;}
+  .page-header{margin-bottom:2rem;}
+  .page-title{font-family:var(--font-display);font-size:2.5rem;letter-spacing:3px;}
+  .page-sub{font-family:var(--font-cond);font-size:0.85rem;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:4px;}
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start;}
+  @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .panel-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .panel-title{font-family:var(--font-display);font-size:1.2rem;letter-spacing:2px;}
+  .panel-count{font-family:var(--font-cond);font-size:0.75rem;letter-spacing:1.5px;color:var(--muted);background:var(--surface2);padding:0.2rem 0.6rem;border-radius:10px;}
+  .app-filters{display:flex;gap:0.4rem;flex-wrap:wrap;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);}
+  .app-filter-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--font-cond);font-size:0.75rem;letter-spacing:1px;text-transform:uppercase;padding:0.25rem 0.7rem;border-radius:20px;cursor:pointer;transition:all 0.15s;}
+  .app-filter-btn.active{background:#333;color:var(--text);border-color:rgba(255,255,255,0.25);}
+  .app-list{max-height:700px;overflow-y:auto;}
+  .app-item{padding:1rem 1.25rem;border-bottom:1px solid var(--border);border-left:3px solid transparent;}
+  .app-item:last-child{border-bottom:none;}
+  .app-top{display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;margin-bottom:0.5rem;}
+  .app-name{font-family:var(--font-display);font-size:1.2rem;letter-spacing:1px;}
+  .app-contact{font-family:var(--font-cond);font-size:0.8rem;color:var(--muted);margin-top:1px;}
+  .status-badge{font-family:var(--font-cond);font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:4px;flex-shrink:0;}
+  .app-meta{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:0.6rem;}
+  .app-meta-item{font-family:var(--font-cond);font-size:0.75rem;}
+  .app-meta-label{color:var(--muted);font-size:0.65rem;letter-spacing:1.5px;text-transform:uppercase;display:block;margin-bottom:1px;}
+  .app-leagues{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.6rem;}
+  .league-pill{font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;padding:0.15rem 0.5rem;border-radius:3px;}
+  .app-message{font-size:0.82rem;color:var(--muted);line-height:1.5;font-style:italic;background:var(--surface2);padding:0.5rem 0.75rem;border-radius:6px;margin-bottom:0.6rem;}
+  .app-actions{display:flex;gap:0.35rem;flex-wrap:wrap;}
+  .status-btn{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;padding:0.25rem 0.65rem;border-radius:4px;cursor:pointer;transition:all 0.15s;}
+  .status-btn:hover{color:var(--text);}
+  .status-btn.current{color:white;}
+  .login-list{max-height:700px;overflow-y:auto;}
+  .login-item{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--border);}
+  .login-item:last-child{border-bottom:none;}
+  .login-avatar{width:38px;height:38px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:0.9rem;color:var(--muted);overflow:hidden;flex-shrink:0;}
+  .login-avatar img{width:100%;height:100%;object-fit:cover;}
+  .login-info{flex:1;min-width:0;}
+  .login-name{font-family:var(--font-cond);font-size:0.9rem;font-weight:600;letter-spacing:0.5px;}
+  .login-time{font-family:var(--font-cond);font-size:0.72rem;color:var(--muted);margin-top:1px;}
+  .login-new{font-family:var(--font-cond);font-size:0.6rem;letter-spacing:1.5px;text-transform:uppercase;background:#1a7a3222;color:#1a7a32;border:1px solid #1a7a3244;padding:0.15rem 0.5rem;border-radius:3px;flex-shrink:0;}
+  .auth-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:1rem;}
+  .auth-gate h2{font-family:var(--font-display);font-size:2rem;letter-spacing:3px;}
+  .auth-gate p{color:var(--muted);font-family:var(--font-cond);letter-spacing:1px;}
+  .empty-state{padding:2rem;text-align:center;color:var(--muted);font-family:var(--font-cond);letter-spacing:1px;font-size:0.85rem;text-transform:uppercase;}
+  .refresh-btn{background:none;border:1px solid var(--border);color:var(--muted);font-family:var(--font-cond);font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;padding:0.25rem 0.7rem;border-radius:4px;cursor:pointer;transition:all 0.15s;}
+  .refresh-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.2);}
+  .toast{position:fixed;bottom:2rem;right:2rem;background:#1a7a32;color:white;font-family:var(--font-cond);font-size:0.9rem;letter-spacing:1px;padding:0.75rem 1.25rem;border-radius:8px;opacity:0;transition:opacity 0.3s;z-index:999;pointer-events:none;}
+  .toast.show{opacity:1;} .toast.error{background:#c0155e;}
+  ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:transparent;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">THE DYNASTY HUB <span>ADMIN PANEL</span></div>
+  <div class="nav-right" id="nav-right">
+    <a href="https://dynasty-leagues.com" class="back-btn">← Main Site</a>
+  </div>
+</nav>
+
+<main id="main-content">
+  <div class="auth-gate"><h2>Checking Access...</h2></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://zwprcshjvjgvaapyfmba.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3cHJjc2hqdmpndmFhcHlmbWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NDA0MjgsImV4cCI6MjA5MTQxNjQyOH0.giYegXooD5Jv57wdHHsy1jAJmDPY-NE9Fa87WeCmSXk';
+const APPLICATION_ADMINS=['227860796003057677','260855372183502848','501532602948255745'];
+const LEAGUE_COLORS={tcl:'#1a7a32',tdl:'#2b6cb0',tsl:'#c0155e',txl:'#8a8a8a'};
+const LEAGUE_NAMES={tcl:'TCL',tdl:'TDL',tsl:'TSL',txl:'TXL'};
+const STATUS_CONFIG={
+  pending:{label:'Pending',color:'#888'},
+  reviewed:{label:'Reviewed',color:'#2b6cb0'},
+  waitlisted:{label:'Waitlisted',color:'#d97706'},
+  accepted:{label:'Accepted',color:'#1a7a32'},
+  rejected:{label:'Rejected',color:'#e53e3e'},
+};
+
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let user=null,applications=[],logins=[],appFilter='all';
+
+function isAdmin(){
+  if(!user)return false;
+  const ids=[user.user_metadata?.provider_id,user.user_metadata?.sub,user.identities?.[0]?.id,user.identities?.[0]?.identity_data?.provider_id,user.identities?.[0]?.identity_data?.sub].filter(Boolean);
+  return ids.some(id=>APPLICATION_ADMINS.includes(String(id)));
+}
+
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(type==='error'?' error':'');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+async function init(){
+  if(window.location.search.includes('code=')){
+    document.getElementById('main-content').innerHTML='<div class="auth-gate"><h2>Signing In...</h2></div>';
+    await sb.auth.exchangeCodeForSession(window.location.search);
+    window.history.replaceState({},'',window.location.pathname);
+  }
+  const{data:{session}}=await sb.auth.getSession();
+  user=session?.user||null;
+  renderNav();
+  if(!user){showAuthGate('Sign in to access the admin panel.');return;}
+  if(!isAdmin()){showAuthGate('You do not have permission to access this page.',true);return;}
+  await logLogin();
+  renderAdminPage();
+}
+
+async function logLogin(){
+  try{
+    await sb.from('admin_logins').insert({
+      discord_name:user.user_metadata?.full_name||user.user_metadata?.name||'Unknown',
+      avatar_url:user.user_metadata?.avatar_url||'',
+      user_id:user.id,
+    });
+  }catch(e){}
+}
+
+function renderNav(){
+  const nr=document.getElementById('nav-right');
+  if(user){
+    const avatar=user.user_metadata?.avatar_url;
+    const name=user.user_metadata?.full_name||user.user_metadata?.name||'Admin';
+    nr.innerHTML=`
+      ${avatar?`<img src="${avatar}" class="avatar" alt="${name}"/>`:''}
+      <span style="font-family:var(--font-cond);font-size:0.85rem;letter-spacing:1px;color:var(--muted);">${name}</span>
+      <a href="https://dynasty-leagues.com" class="back-btn">← Main Site</a>
+      <button onclick="signOut()" class="back-btn">Sign Out</button>`;
+  }
+}
+
+async function signOut(){await sb.auth.signOut();window.location.reload();}
+async function signIn(){await sb.auth.signInWithOAuth({provider:'discord',options:{redirectTo:window.location.href}});}
+
+function showAuthGate(msg,isDenied=false){
+  document.getElementById('main-content').innerHTML=`
+    <div class="auth-gate">
+      <div style="font-size:3rem;">${isDenied?'🔒':'🛡️'}</div>
+      <h2>${isDenied?'Access Denied':'Admin Panel'}</h2>
+      <p>${msg}</p>
+      ${!isDenied?`<button onclick="signIn()" style="margin-top:1rem;background:#5865F2;color:white;border:none;font-family:var(--font-cond);font-size:0.9rem;letter-spacing:1px;text-transform:uppercase;padding:0.7rem 1.5rem;border-radius:6px;cursor:pointer;">Sign in with Discord</button>`:''}
+    </div>`;
+}
+
+async function renderAdminPage(){
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div class="page-title">ADMIN PANEL</div>
+      <div class="page-sub">Dynasty Hub — Internal Dashboard</div>
+    </div>
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">APPLICATIONS</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span class="panel-count" id="apps-count">Loading...</span>
+            <button class="refresh-btn" onclick="loadApplications()">↻</button>
+          </div>
+        </div>
+        <div class="app-filters">
+          ${['all','pending','reviewed','waitlisted','accepted','rejected'].map(s=>`
+            <button class="app-filter-btn ${s==='all'?'active':''}" onclick="filterApps('${s}',this)">
+              ${s==='all'?'All':STATUS_CONFIG[s].label}
+            </button>`).join('')}
+        </div>
+        <div class="app-list" id="app-list"><div class="empty-state">Loading...</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">RECENT LOGINS</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span class="panel-count" id="logins-count">Loading...</span>
+            <button class="refresh-btn" onclick="loadLogins()">↻</button>
+          </div>
+        </div>
+        <div class="login-list" id="login-list"><div class="empty-state">Loading...</div></div>
+      </div>
+    </div>`;
+
+  await Promise.all([loadApplications(),loadLogins()]);
+}
+
+async function loadApplications(){
+  const{data}=await sb.from('prospect_applications').select('*').order('created_at',{ascending:false});
+  applications=data||[];
+  document.getElementById('apps-count').textContent=`${applications.length} total`;
+  renderAppList();
+}
+
+async function loadLogins(){
+  const{data}=await sb.from('admin_logins').select('*').order('created_at',{ascending:false}).limit(25);
+  logins=data||[];
+  document.getElementById('logins-count').textContent=`Last ${logins.length}`;
+  renderLoginList();
+}
+
+function filterApps(status,btn){
+  appFilter=status;
+  document.querySelectorAll('.app-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAppList();
+}
+
+function renderAppList(){
+  const list=document.getElementById('app-list');
+  const filtered=appFilter==='all'?applications:applications.filter(a=>(a.status||'pending')===appFilter);
+  if(!filtered.length){list.innerHTML=`<div class="empty-state">No ${appFilter==='all'?'':appFilter} applications.</div>`;return;}
+  list.innerHTML=filtered.map(app=>{
+    const status=app.status||'pending';
+    const cfg=STATUS_CONFIG[status];
+    const date=new Date(app.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const leagues=app.leagues_interested||[];
+    return `<div class="app-item" style="border-left-color:${cfg.color}">
+      <div class="app-top">
+        <div>
+          <div class="app-name">${app.first_name} ${app.last_name}</div>
+          <div class="app-contact">${app.email}${app.discord?' · '+app.discord:''}</div>
+        </div>
+        <span class="status-badge" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44">${cfg.label}</span>
+      </div>
+      <div class="app-meta">
+        ${(app.city||app.state)?`<div class="app-meta-item"><span class="app-meta-label">Location</span>${[app.city,app.state].filter(Boolean).join(', ')}</div>`:''}
+        ${app.experience?`<div class="app-meta-item"><span class="app-meta-label">Experience</span>${app.experience}</div>`:''}
+        ${app.referred_by?`<div class="app-meta-item"><span class="app-meta-label">Referred By</span>${app.referred_by}</div>`:''}
+        <div class="app-meta-item"><span class="app-meta-label">Applied</span>${date}</div>
+      </div>
+      ${leagues.length?`<div class="app-leagues">${leagues.map(l=>`<span class="league-pill" style="background:${LEAGUE_COLORS[l]||'#555'}22;color:${LEAGUE_COLORS[l]||'#888'};border:1px solid ${LEAGUE_COLORS[l]||'#555'}44">${LEAGUE_NAMES[l]||l}</span>`).join('')}</div>`:''}
+      ${app.message?`<div class="app-message">"${app.message}"</div>`:''}
+      <div class="app-actions">
+        ${Object.entries(STATUS_CONFIG).map(([s,c])=>`
+          <button onclick="updateStatus('${app.id}','${s}')" class="status-btn ${status===s?'current':''}"
+            style="${status===s?`background:${c.color};border-color:${c.color};`:''}">
+            ${c.label}
+          </button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function updateStatus(id,status){
+  const{error}=await sb.from('prospect_applications').update({status}).eq('id',id);
+  if(error){showToast('Update failed','error');return;}
+  const app=applications.find(a=>a.id===id);
+  if(app)app.status=status;
+  renderAppList();
+  showToast(`Status → ${STATUS_CONFIG[status].label}`);
+}
+
+function renderLoginList(){
+  const list=document.getElementById('login-list');
+  if(!logins.length){list.innerHTML='<div class="empty-state">No logins recorded yet.</div>';return;}
+  const now=new Date();
+  list.innerHTML=logins.map(l=>{
+    const date=new Date(l.created_at);
+    const diffMins=Math.floor((now-date)/60000);
+    const diffHrs=Math.floor(diffMins/60);
+    const diffDays=Math.floor(diffHrs/24);
+    const timeStr=diffMins<1?'Just now':diffMins<60?`${diffMins}m ago`:diffHrs<24?`${diffHrs}h ago`:diffDays<7?`${diffDays}d ago`:date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const initials=(l.discord_name||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const isRecent=diffMins<30;
+    return `<div class="login-item">
+      <div class="login-avatar">
+        ${l.avatar_url?`<img src="${l.avatar_url}" alt="${l.discord_name}" onerror="this.parentElement.textContent='${initials}'"/>`:`${initials}`}
+      </div>
+      <div class="login-info">
+        <div class="login-name">${l.discord_name||'Unknown'}</div>
+        <div class="login-time">${timeStr} · ${date.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+      </div>
+      ${isRecent?`<span class="login-new">Online</span>`:''}
+    </div>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>
