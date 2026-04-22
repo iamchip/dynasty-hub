@@ -969,14 +969,48 @@ function previewFile(input) {
   reader.readAsDataURL(file);
 }
 
+// Compress image before upload — max 1920px wide, 85% JPEG quality
+function compressImage(file, maxWidth = 1920, quality = 0.85) {
+  return new Promise((resolve) => {
+    // Skip compression for non-images or already small files (<300KB)
+    if (!file.type.startsWith('image/') || file.size < 300 * 1024) {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        // Only use compressed version if it's actually smaller
+        if (blob && blob.size < file.size) {
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        } else {
+          resolve(file);
+        }
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function uploadPhoto(btn) {
   const fileInput = document.getElementById('file-input');
   if (!fileInput.files[0]) { showToast('Please select a photo first.', 'error'); return; }
-  btn.disabled = true; btn.textContent = 'Uploading...';
-  const file = fileInput.files[0];
-  const ext = file.name.split('.').pop();
-  const path = `${user.id}/${Date.now()}.${ext}`;
-  const { error: uploadErr } = await sb.storage.from('draft-photos').upload(path, file);
+  btn.disabled = true; btn.textContent = 'Compressing...';
+  const rawFile = fileInput.files[0];
+  const file = await compressImage(rawFile);
+  const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+  btn.textContent = `Uploading (${sizeMB}MB)...`;
+  const path = `${user.id}/${Date.now()}.jpg`;
+  const { error: uploadErr } = await sb.storage.from('draft-photos').upload(path, file, { contentType: 'image/jpeg' });
   if (uploadErr) { showToast('Upload failed: ' + uploadErr.message, 'error'); btn.disabled=false; btn.textContent='Upload Photo'; return; }
   const { error: dbErr } = await sb.from('draft_photos').insert({
     storage_path: path,
